@@ -7,6 +7,8 @@ const entities = new Entities()
 const SQS = new AWS.SQS()
 
 exports.handler = async ({ body }, _, callback) => {
+  console.log('Received new competition', body)
+
   const res = { headers: { 'Access-Control-Allow-Origin': '*' } }
 
   try {
