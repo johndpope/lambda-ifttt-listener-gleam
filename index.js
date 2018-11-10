@@ -2,7 +2,8 @@ const AWS = require('aws-sdk')
 AWS.config.update({region: 'eu-west-1'})
 const axios = require('axios')
 const crypto = require('crypto')
-const entities = new require('html-entities').XmlEntities()
+const Entities = require('html-entities').XmlEntities
+const entities = new Entities()
 const SQS = new AWS.SQS()
 
 exports.handler = async ({ body }, _, callback) => {
