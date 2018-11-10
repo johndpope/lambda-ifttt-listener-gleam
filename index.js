@@ -5,7 +5,6 @@ const crypto = require('crypto')
 const entities = new require('html-entities').XmlEntities()
 const SQS = new AWS.SQS()
 
-
 exports.handler = async ({ body }, _, callback) => {
   const res = { headers: { 'Access-Control-Allow-Origin': '*' } }
 
@@ -33,7 +32,7 @@ exports.handler = async ({ body }, _, callback) => {
     // Adapts the fetched data to our competition persister.
     const competition = {
       entrants,
-      source_id: getSourceId(info.campaign.terms_and_conditions),
+      source_id: process.env.SOURCE_ID,
       entry_methods: info.entry_methods.map(method => method.entry_type),
       media: media.url,
       end_date: info.campaign.ends_at,
@@ -56,7 +55,7 @@ exports.handler = async ({ body }, _, callback) => {
     // Pushes message to the SQS queue.
     await SQS.sendMessage({
       MessageBody: JSON.stringify({
-        region_id: process.env.REGION_ID,
+        region_id: getRegionId(info.campaign.terms_and_conditions),
         competitions: [ competition ],
         method: 'POST'
       }),
@@ -96,13 +95,13 @@ const fetchContents = (url) => {
 }
 
 /**
- * Determines if is verified based on location regex search.
+ * Determines the region id based on location regex search.
  *
  * @param {string} text
  *
  * @return {boolean}
  */
-const getSourceId = (text) => {
+const getRegionId = (text) => {
   const sources = [
     {
       regex: [

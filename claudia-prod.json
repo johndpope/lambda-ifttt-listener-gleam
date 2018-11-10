@@ -1,0 +1,8 @@
+{
+  "lambda": {
+    "role": "arn:aws:iam::365488455739:role/scraper_lambda",
+    "name": "prod-ifttt-listener-gleam",
+    "region": "eu-west-1",
+    "sharedRole": true
+  }
+}
