@@ -1,17 +1,6 @@
-# AWS Lambda: Twitter Scraper
+# AWS Lambda: IFTTT Webhook listener for Gleam
 
-Fetches tweets, parses them and pushes them to an SQS.
-
-The event object has to be of following structure:
-
-```
-event.Records[0].Sns.message = {
-    ...
-    "region_id": Integer,
-    "since_id": String,
-    "params": Object
-}
-```
+Fetches competitions from url that is sent from IFTTT, parses them and pushes them to an SQS.
 
 ## Deployment
 Deploy with `npm run deploy:{env}`.

@@ -22,7 +22,9 @@
   },
   "dependencies": {
     "aws-sdk": "^2.250.1",
+    "axios": "^0.18.0",
     "chrono-node": "^1.3.5",
+    "html-entities": "^1.2.1",
     "lodash": "^4.17.5"
   },
   "devDependencies": {
