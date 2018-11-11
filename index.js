@@ -15,8 +15,6 @@ exports.handler = async ({ body }, _, callback) => {
     // Fetches gleam.io competition.
     const { url, data } = await fetchContents(body)
 
-    const competitionId = crypto.createHash('sha256').update(url).digest('hex')
-
     // Parses number of entrants out of html.
     const entrants = /initEntryCount\((\d+)\)/.exec(data)[1]
     // Gets the competition object out of html.
@@ -36,14 +34,14 @@ exports.handler = async ({ body }, _, callback) => {
     const competition = {
       entrants,
       source_id: process.env.SOURCE_ID,
-      entry_methods: info.entry_methods.map(method => method.entry_type),
+      entry_methods: getEntryMethods(info.entry_methods),
       media: media.url,
-      end_date: info.campaign.ends_at,
+      end_date: new Date(info.campaign.ends_at * 1000).toISOString(),
       data: {
         resource: {
-          resource_id: competitionId,
+          resource_id: url,
           text: info.campaign.name,
-          posted: info.campaign.starts_at
+          posted: info.campaign.starts_at * 1000
         },
         promoter: {
           homepage: info.campaign.site_url,
@@ -82,19 +80,19 @@ exports.handler = async ({ body }, _, callback) => {
  */
 const fetchContents = (url) => {
   return new Promise(async (resolve) => {
-    if (url.startsWith('https://gleam.io/')) {
-      return resolve(axios.get(url))
+    let { data, request } = await axios.get(url)
+
+    url = request.path
+
+    if (!request.res.responseUrl.startsWith('https://gleam.io')) {
+      url = /(href|src)="https:\/\/gleam\.io\/(([a-z0-9]+?)\/([a-z0-9-]+?))"/gmi
+        .exec(data)[2]
+
+      data = (await axios.get(`https://gleam.io/${url}`)).data
     }
 
-    const regex = /(href|src)="https:\/\/gleam\.io\/(([a-zA-Z0-9]+?)\/([a-zA-Z0-9-]+?))"/gmi
-
-    const { data } = await axios.get(url)
-
-    url = regex.exec(data)[2]
-
-    resolve(axios.get(`https://gleam.io/${url}`))
+    return resolve({ data, url })
   })
-    .then(({ data }) => ({ data, url }))
 }
 
 /**
@@ -135,4 +133,15 @@ const getRegionId = (text) => {
   ]
 
   return sources.find(({ regex }) => regex.some(reg => reg.test(text))).id
+}
+
+/**
+ * Gets list of entry methods.
+ *
+ * @param {any[]} methods
+ *
+ * @return {string[]}
+ */
+const getEntryMethods = (methods) => {
+  return Array.from(new Set(methods.map(method => method.entry_type)))
 }
