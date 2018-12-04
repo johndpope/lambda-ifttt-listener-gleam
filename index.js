@@ -7,70 +7,68 @@ const entities = new Entities()
 const SQS = new AWS.SQS()
 
 exports.handler = async ({ body }, _, callback) => {
+  try {
+    await processCompetition(body)
+  } catch (_) {
+    console.log('Processing failed.')
+  }
+
+  return callback(null, {
+    statusCode: 202,
+    headers: { 'Access-Control-Allow-Origin': '*' }
+  })
+}
+
+const processCompetition = async (body) => {
   console.log('Received new competition', body)
 
-  const res = { headers: { 'Access-Control-Allow-Origin': '*' } }
+  // Fetches gleam.io competition.
+  const { url, data } = await fetchContents(body)
 
-  try {
-    // Fetches gleam.io competition.
-    const { url, data } = await fetchContents(body)
+  // Parses number of entrants out of html.
+  const entrants = /initEntryCount\((\d+)\)/.exec(data)[1]
+  // Gets the competition object out of html.
+  const info = JSON.parse(entities.decode(/initCampaign\((.*)\)/.exec(data)[1]))
 
-    // Parses number of entrants out of html.
-    const entrants = /initEntryCount\((\d+)\)/.exec(data)[1]
-    // Gets the competition object out of html.
-    const info = JSON.parse(entities.decode(/initCampaign\((.*)\)/.exec(data)[1]))
+  // Generate promoterId from site url.
+  const promoterId = crypto.createHash('sha256').update(info.campaign.site_url).digest('hex')
 
-    // Generate promoterId from site url.
-    const promoterId = crypto.createHash('sha256').update(info.campaign.site_url).digest('hex')
+  // Image object.
+  let media = info.incentives.find(i => i.url || i.medium_url) || {}
 
-    // Image object.
-    const media = info.incentives.shift()
-
-    if (!media || media.src) {
-      throw new Error('Resource not in a valid format.')
-    }
-
-    // Adapts the fetched data to our competition persister.
-    const competition = {
-      entrants,
-      source_id: process.env.SOURCE_ID,
-      entry_methods: getEntryMethods(info.entry_methods),
-      media: media.url,
-      end_date: new Date(info.campaign.ends_at * 1000).toISOString(),
-      data: {
-        resource: {
-          resource_id: url,
-          text: info.campaign.name,
-          posted: info.campaign.starts_at * 1000
-        },
-        promoter: {
-          homepage: info.campaign.site_url,
-          resource_id: promoterId,
-          screen_name: info.campaign.site_name,
-          name: info.campaign.site_name,
-          thumbnail: `https://www.google.com/s2/favicons?domain=${info.campaign.site_url}`
-        }
+  // Adapts the fetched data to our competition persister.
+  const competition = {
+    entrants,
+    source_id: process.env.SOURCE_ID,
+    media: media.url || media.medium_url || null,
+    entry_methods: getEntryMethods(info.entry_methods),
+    end_date: new Date(info.campaign.ends_at * 1000).toISOString(),
+    data: {
+      resource: {
+        resource_id: url,
+        text: info.campaign.name,
+        posted: info.campaign.starts_at * 1000
+      },
+      promoter: {
+        homepage: info.campaign.site_url,
+        resource_id: promoterId,
+        screen_name: info.campaign.site_name,
+        name: info.campaign.site_name,
+        thumbnail: `https://www.google.com/s2/favicons?domain=${info.campaign.site_url}`
       }
     }
-
-    // Pushes message to the SQS queue.
-    await SQS.sendMessage({
-      MessageBody: JSON.stringify({
-        region_id: getRegionId(info.campaign.terms_and_conditions),
-        competitions: [ competition ],
-        method: 'POST'
-      }),
-      QueueUrl: process.env.PERSISTOR_QUEUE_URL,
-      MessageGroupId: Date.now() + []
-    }).promise()
-
-    res.statusCode = 200
-  } catch (e) {
-    res.statusCode = 422
-    res.body = JSON.stringify({ error: e.message })
-  } finally {
-    return callback(null, res)
   }
+
+  // Pushes message to the SQS queue.
+  await SQS.sendMessage({
+    MessageBody: JSON.stringify({
+      region_id: getRegionId(info.campaign.terms_and_conditions),
+      competitions: [ competition ],
+      method: 'POST'
+    }),
+    QueueUrl: process.env.PERSISTOR_QUEUE_URL,
+    MessageGroupId: Date.now() + []
+  }).promise()
 }
 
 /**
