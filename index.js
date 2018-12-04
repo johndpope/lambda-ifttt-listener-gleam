@@ -84,25 +84,23 @@ const processCompetition = async (body) => {
  *
  * @param {string} url
  */
-const fetchContents = (url) => {
-  return new Promise(async (resolve) => {
-    let { data, request } = await axios.get(url)
+const fetchContents = async (url) => {
+  let { data, request } = await axios.get(url)
 
-    url = request.path
+  url = request.path
 
-    if (!request.res.responseUrl.startsWith('https://gleam.io')) {
-      url = /(href|src)="https:\/\/gleam\.io\/(([a-z0-9]+?)\/([a-z0-9-]+?))"/gmi
-        .exec(data)[2]
+  if (!request.res.responseUrl.startsWith('https://gleam.io')) {
+    url = /(href|src)="https:\/\/gleam\.io\/(([a-z0-9]+?)\/([a-z0-9-]+?))"/gmi
+      .exec(data)[2]
 
-      data = (await axios.get(`https://gleam.io/${url}`)).data
-    }
+    data = (await axios.get(`https://gleam.io/${url}`)).data
+  }
 
-    url = url
-      .replace(/\?.*$/gi)
-      .replace(/^\//, '')
+  url = url
+    .replace(/\?.*$/gi)
+    .replace(/^\//, '')
 
-    return resolve({ data, url })
-  })
+  return { data, url }
 }
 
 /**
