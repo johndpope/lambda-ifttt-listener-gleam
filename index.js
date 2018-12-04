@@ -9,8 +9,8 @@ const SQS = new AWS.SQS()
 exports.handler = async ({ body }, _, callback) => {
   try {
     await processCompetition(body)
-  } catch (_) {
-    console.log('Processing failed.')
+  } catch (e) {
+    console.log('Processing failed.', e)
   }
 
   return callback(null, {
@@ -26,7 +26,11 @@ const processCompetition = async (body) => {
   const { url, data } = await fetchContents(body)
 
   // Parses number of entrants out of html.
-  const entrants = /initEntryCount\((\d+)\)/.exec(data)[1]
+  let entrants = null
+  try {
+    entrants = /initEntryCount\((\d+)\)/.exec(data)[1]
+  } catch(_) {}
+
   // Gets the competition object out of html.
   const info = JSON.parse(entities.decode(/initCampaign\((.*)\)/.exec(data)[1]))
 
