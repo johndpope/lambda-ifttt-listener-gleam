@@ -93,7 +93,10 @@ const fetchContents = (url) => {
       data = (await axios.get(`https://gleam.io/${url}`)).data
     }
 
-    return resolve({ data, url })
+    return resolve({
+      data,
+      url: url.startsWith('/') ? url.substring(1) : url
+    })
   })
 }
 
