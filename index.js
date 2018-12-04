@@ -34,13 +34,17 @@ const processCompetition = async (body) => {
   const promoterId = crypto.createHash('sha256').update(info.campaign.site_url).digest('hex')
 
   // Image object.
-  let media = info.incentives.find(i => i.url || i.medium_url) || {}
+  let media = info.incentives.find(i => i.url || i.medium_url)
+
+  if (!media) {
+    throw new Error('Competition image is required.')
+  }
 
   // Adapts the fetched data to our competition persister.
   const competition = {
     entrants,
     source_id: process.env.SOURCE_ID,
-    media: media.url || media.medium_url || null,
+    media: media.url || media.medium_url,
     entry_methods: getEntryMethods(info.entry_methods),
     end_date: new Date(info.campaign.ends_at * 1000).toISOString(),
     data: {
