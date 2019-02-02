@@ -5,6 +5,9 @@ const crypto = require('crypto')
 const Entities = require('html-entities').XmlEntities
 const entities = new Entities()
 const SQS = new AWS.SQS()
+const fetchBlacklist = require('./src/loadBlacklist')
+
+// This lambda needs refactor because it's unreadable and ugly.
 
 exports.handler = async ({ body }, _, callback) => {
   try {
@@ -20,8 +23,6 @@ exports.handler = async ({ body }, _, callback) => {
 }
 
 const processCompetition = async (body) => {
-  console.log('Received new competition', body)
-
   // Fetches gleam.io competition.
   const { url, data } = await fetchContents(body)
 
@@ -33,6 +34,12 @@ const processCompetition = async (body) => {
 
   // Gets the competition object out of html.
   const info = JSON.parse(entities.decode(/initCampaign\((.*)\)/.exec(data)[1]))
+
+  const blacklist = await fetchBlacklist()
+
+  if (blacklist.some(pattern => pattern.test(info.campaign.site_url))) {
+    throw new Error(`Promoter ${info.campaign.site_url} blacklisted`)
+  }
 
   // Generate promoterId from site url.
   const promoterId = crypto.createHash('sha256').update(info.campaign.site_url).digest('hex')
